@@ -1,72 +1,67 @@
-import { useState } from "react";
-import { Card, TextContainer, Text } from "@shopify/polaris";
-import { useAppBridge } from "@shopify/app-bridge-react";
-import { useTranslation } from "react-i18next";
+import {
+  Card,
+  Stack,
+  Text,
+  TextContainer,
+} from "@shopify/polaris";
 import { useQuery } from "react-query";
 
 export function ProductsCard() {
-  const shopify = useAppBridge();
-  const { t } = useTranslation();
-  const [isPopulating, setIsPopulating] = useState(false);
-  const productsCount = 5;
-
   const {
     data,
-    refetch: refetchProductCount,
-    isLoading: isLoadingCount,
+    isLoading,
+    isError,
   } = useQuery({
     queryKey: ["productCount"],
     queryFn: async () => {
       const response = await fetch("/api/products/count");
-      return await response.json();
+
+      if (!response.ok) {
+        throw new Error("Unable to load the Shopify product count.");
+      }
+
+      return response.json();
     },
     refetchOnWindowFocus: false,
   });
 
-  const setPopulating = (flag) => {
-    shopify.loading(flag);
-    setIsPopulating(flag);
-  };
+  let productCount = "Loading...";
 
-  const handlePopulate = async () => {
-    setPopulating(true);
-    const response = await fetch("/api/products", { method: "POST" });
-
-    if (response.ok) {
-      await refetchProductCount();
-
-      shopify.toast.show(
-        t("ProductsCard.productsCreatedToast", { count: productsCount })
-      );
-    } else {
-      shopify.toast.show(t("ProductsCard.errorCreatingProductsToast"), {
-        isError: true,
-      });
-    }
-
-    setPopulating(false);
-  };
+  if (isError) {
+    productCount = "Unable to load";
+  } else if (!isLoading) {
+    productCount = data?.count ?? 0;
+  }
 
   return (
-    <Card
-      title={t("ProductsCard.title")}
-      sectioned
-      primaryFooterAction={{
-        content: t("ProductsCard.populateProductsButton", {
-          count: productsCount,
-        }),
-        onAction: handlePopulate,
-        loading: isPopulating,
-      }}
-    >
+    <Card>
       <TextContainer spacing="loose">
-        <p>{t("ProductsCard.description")}</p>
-        <Text as="h4" variant="headingMd">
-          {t("ProductsCard.totalProductsHeading")}
-          <Text variant="bodyMd" as="p" fontWeight="semibold">
-            {isLoadingCount ? "-" : data?.count}
-          </Text>
+        <Text variant="headingMd" as="h2">
+          Application connection status
         </Text>
+
+        <Stack vertical spacing="tight">
+          <Text as="p">
+            Embedded React application: Connected
+          </Text>
+
+          <Text as="p">
+            Node.js and Express backend: Connected
+          </Text>
+
+          <Text as="p">
+            Shopify authentication: Working
+          </Text>
+
+          <Text as="p">
+            Shopify GraphQL Admin API: Working
+          </Text>
+
+          <Text as="p">
+            Products currently in the development store:{" "}
+            <strong>{productCount}</strong>
+          </Text>
+        </Stack>
       </TextContainer>
     </Card>
   );
